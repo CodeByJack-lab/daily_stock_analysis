@@ -16,7 +16,9 @@ import math
 import re
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional, Dict, Any, List, Tuple, Callable
+from zoneinfo import ZoneInfo
 
 import litellm
 from json_repair import repair_json
@@ -2017,8 +2019,32 @@ class GeminiAnalyzer:
                 .replace("{default_skill_policy_section}", default_skill_policy_section)
                 .replace("{skills_section}", skills_section)
             )
+        # Build current-time context block (replaces fragile training-data assumptions).
+        try:
+            now_hkt = datetime.now(ZoneInfo("Asia/Hong_Kong"))
+            now_et = now_hkt.astimezone(ZoneInfo("America/New_York"))
+            time_hkt = now_hkt.strftime("%Y-%m-%d %H:%M")
+            time_et = now_et.strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            time_hkt = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+            time_et = time_hkt
+
         if lang == "en":
-            return base_prompt + """
+            return base_prompt + f"""
+
+## Current Time (absolute authority — overrides training data)
+
+- Now (HKT): {time_hkt}
+- Now (ET):  {time_et}
+- All "today" / "recent" / "this week" references must be relative to the timestamps above.
+- Never cite a date later than the timestamps above as "today" — if you find such a date in the data section, treat it as future projection, not present.
+
+## Data Discipline (mandatory)
+
+- All prices, MA values, technical indicators, news dates, analyst targets, fundamental ratios MUST be quoted verbatim from the data section below.
+- Do NOT fabricate any numbers, dates, or quotes from training memory.
+- If a required data point is missing in the data section, write "no data" — do not invent a substitute.
+- When citing a value, it must match the data section exactly; if ambiguous, defer to the data section.
 
 ## Output Language (highest priority)
 
@@ -2028,7 +2054,21 @@ class GeminiAnalyzer:
 - Use the common English company name when you are confident; otherwise keep the original listed company name instead of inventing one.
 - This includes `stock_name`, `trend_prediction`, `operation_advice`, `confidence_level`, nested dashboard text, checklist items, and all narrative summaries.
 """
-        return base_prompt + """
+        return base_prompt + f"""
+
+## 當前時間（絕對權威，覆蓋訓練資料）
+
+- 現在時間（HKT）：{time_hkt}
+- 現在時間（ET）： {time_et}
+- 所有「今日／近期／本週」嘅引用必須以上述時間為基準。
+- 嚴禁引用比上述時間更晚嘅日期做「今日」；若數據段出現晚於當前時間嘅日期，視為「未來預測」而非現況。
+
+## 數據引用紀律（強制執行）
+
+- 所有價格、MA 值、技術指標、新聞日期、分析師目標、基本面比率，**必須**從下方「數據」段逐字引用。
+- **嚴禁**從訓練記憶拼湊任何數字、日期或敘述。
+- 若數據段內無相應內容，直接寫「無數據」，不得編造替代值。
+- 引用任何數值時必須與數據段一致；如有歧義，以數據段為準。
 
 ## 輸出語言與格式規範（最高優先級）
 
