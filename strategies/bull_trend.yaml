@@ -15,35 +15,35 @@ default_priority: 10
 market_regimes: [trending_up]
 
 instructions: |
-  **Default Bull Trend Strategy**
+  **預設牛市趨勢策略**
 
-  Use case:
-  - Default strategy for standard stock analysis.
-  - Prioritize "uptrend + controlled risk + no chasing highs" opportunities.
+  適用場景：
+  - 標準個股分析的預設策略。
+  - 優先尋找「上升趨勢＋風險可控＋不追高」的機會。
 
-  Analysis framework:
+  分析框架：
 
-  1. **Trend Confirmation (Highest Priority)**
-     - Use `analyze_trend` to assess MA5/MA10/MA20 alignment.
-     - MA5 >= MA10 >= MA20 with MA20 sloping upward = bullish structure.
-     - If price significantly breaks below MA20, reduce bullish weighting.
+  1. **趨勢確認（最高優先級）**
+     - 使用 `analyze_trend` 評估 MA5/MA10/MA20 排列狀態。
+     - MA5 >= MA10 >= MA20 且 MA20 向上傾斜 = 多頭結構。
+     - 若股價明顯跌破 MA20，降低多頭權重。
 
-  2. **Price Position and Timing**
-     - Prefer "pullback holds" over "chasing highs".
-     - When price is too far from MA5/MA10, wait for pullback.
-     - Volume breakout above key resistance increases win rate rating.
+  2. **價格位置與進場時機**
+     - 優先「回調守穩」而非「追漲創高」。
+     - 當股價偏離 MA5/MA10 過遠時，等待回調。
+     - 放量突破關鍵阻力位可提高勝率評級。
 
-  3. **Volume-Price Validation**
-     - Use `get_daily_history` to check if breakout/rebound days show volume expansion.
-     - Low-volume rallies require caution; high-volume stagnation signals distribution.
+  3. **量價配合驗證**
+     - 使用 `get_daily_history` 確認突破／反彈日是否成交量放大。
+     - 縮量拉升需謹慎；放量滯漲為派發信號。
 
-  4. **Trade Recommendation Output**
-     - Output clear Buy/Watch/Reduce bias with trigger conditions.
-     - Always provide stop-loss reference (e.g., below MA20 or structural low).
-     - If no clear edge, explicitly state "stand aside" to avoid overtrading.
+  4. **交易建議輸出**
+     - 輸出明確的買入／觀望／減倉傾向，並附帶觸發條件。
+     - 必須提供止損參考（如跌破 MA20 或結構低點）。
+     - 若無明確優勢，明確說明「場外觀望」以避免過度交易。
 
-  Score adjustments:
-  - Bullish alignment + strong trend: `sentiment_score +12`
-  - Pullback to key MA then stabilizes: `sentiment_score +8`
-  - Volume breakout above key resistance: `sentiment_score +10`
-  - Break below MA20 or trend weakens: `sentiment_score -12`
+  評分調整：
+  - 多頭排列＋強勢趨勢：`sentiment_score +12`
+  - 回調至關鍵均線後止穩：`sentiment_score +8`
+  - 放量突破關鍵阻力：`sentiment_score +10`
+  - 跌破 MA20 或趨勢走弱：`sentiment_score -12`

@@ -1516,6 +1516,70 @@ class AnalysisResult:
         return star_map.get(str(self.confidence_level or "").strip().lower(), "⭐⭐")
 
 
+_MA_EVENT_KEYWORDS: Tuple[str, ...] = (
+    "merger agreement",
+    "acquisition agreement",
+    "tender offer",
+    "going private",
+    "buyout",
+    "merger deal",
+    "takeover bid",
+    "acquisition",
+)
+
+
+def _detect_ma_event(news_context: Optional[str]) -> bool:
+    """Return True when news_context contains M&A-related keywords."""
+    if not news_context:
+        return False
+    text = news_context.lower()
+    return any(kw in text for kw in _MA_EVENT_KEYWORDS)
+
+
+def _inject_ma_warning(result: "AnalysisResult") -> None:
+    """Overwrite trading advice with a corporate-event warning (in-place).
+
+    When an active M&A / going-private event is detected, technical signals
+    lose predictive value. This function replaces the LLM's buy/sell conclusion
+    with a prominent warning and forces decision_type to 'hold'.
+    """
+    warning = "⚠️ CORPORATE EVENT DETECTED：此股票可能涉及併購，技術分析參考價值有限"
+
+    result.decision_type = "hold"
+    result.operation_advice = "觀望"
+    result.sentiment_score = 50
+    result.confidence_level = "低"
+
+    result.risk_warning = (
+        f"{warning}\n{result.risk_warning}" if result.risk_warning else warning
+    )
+
+    if not isinstance(result.dashboard, dict):
+        result.dashboard = {}
+
+    core = result.dashboard.get("core_conclusion")
+    if not isinstance(core, dict):
+        core = {}
+        result.dashboard["core_conclusion"] = core
+
+    core["signal_type"] = "⚠️ 企業事件警告"
+    core["one_sentence"] = warning
+    core["time_sensitivity"] = "不急"
+
+    pos_advice = core.get("position_advice")
+    if not isinstance(pos_advice, dict):
+        pos_advice = {}
+        core["position_advice"] = pos_advice
+    pos_advice["no_position"] = "請勿建倉，待併購事件明朗後再行判斷。"
+    pos_advice["has_position"] = "持倉者建議評估退出風險，技術止損點不適用於併購情境。"
+
+    result.dashboard["decision_type"] = "hold"
+    result.dashboard["operation_advice"] = "觀望"
+    result.dashboard["sentiment_score"] = 50
+
+    logger.info("[M&A] Corporate event detected in news; technical advice suppressed")
+
+
 class GeminiAnalyzer:
     """
     Gemini AI 分析器
@@ -1966,11 +2030,18 @@ class GeminiAnalyzer:
 """
         return base_prompt + """
 
-## 输出语言（最高优先级）
+## 輸出語言與格式規範（最高優先級）
 
-- 所有 JSON 键名保持不变。
-- `decision_type` 必须保持为 `buy|hold|sell`。
-- 所有面向用户的人类可读文本值必须使用中文。
+- 所有 JSON 鍵名保持不變。
+- `decision_type` 必須保持為 `buy|hold|sell`。
+- 所有面向用戶的人類可讀文字值必須使用**繁體中文**，採用台灣／香港慣用詞彙，禁止輸出簡體中文。
+
+## 分析師評級時效規則（強制執行）
+
+- 分析師目標價及評級，**只能引用最近30日內的數字**用於結論判斷與風險評估。
+- 超過30日的舊評級只可列為歷史背景，嚴禁用於風險判斷或操作結論。
+- 若找不到30日內的分析師數據，須在報告中明確註明「近期無最新分析師目標」，不得以舊數據替代。
+- 若有多家機構評級，優先展示最近30日內的並標註具體日期（YYYY-MM-DD）。
 """
 
     def _has_channel_config(self, config: Config) -> bool:
@@ -2683,6 +2754,10 @@ class GeminiAnalyzer:
                         missing_fields,
                     )
                     break
+
+            # M&A / corporate event guard — override LLM advice when acquisition keywords found
+            if _detect_ma_event(news_context):
+                _inject_ma_warning(result)
 
             persist_llm_usage(llm_usage, model_used, call_type="analysis", stock_code=code)
 

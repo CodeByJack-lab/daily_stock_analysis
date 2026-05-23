@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 <!-- 新条目格式：- [类型] 描述（类型取值：新功能/改进/修复/文档/测试/chore）-->
 <!-- 每条独立一行追加到本段末尾，无需分类标题，合并时冲突最小 -->
+- [改进] analyzer: 系統 prompt 輸出語言改為繁體中文（台灣/香港慣用詞彙），禁止輸出簡體中文
+- [改进] analyzer: 在系統 prompt 加入分析師評級30日時效強制規則，超過30日的舊目標價僅供歷史參考
+- [新功能] analyzer: 新增 M&A 企業事件偵測（_detect_ma_event / _inject_ma_warning），發現併購關鍵詞時自動注入警告並將決策覆寫為觀望
+- [改进] strategies/bull_trend.yaml: instructions 全面改為繁體中文，使用台灣/香港慣用詞彙
 
 ## [3.18.0] - 2026-05-21
 
