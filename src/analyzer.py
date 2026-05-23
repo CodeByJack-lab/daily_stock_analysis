@@ -839,7 +839,7 @@ def stabilize_decision_with_structure(
         has_significant_risk = _has_structural_risk_alert(result)
 
         if decision_type == "buy":
-            if near_resistance and flow_bias != "inflow":
+            if False:  # DISABLED: buy_near_resistance not applicable for US stocks
                 _downgrade_to_structural_hold(
                     result,
                     language,
@@ -1537,7 +1537,9 @@ class GeminiAnalyzer:
     # 核心模块：核心结论 + 数据透视 + 舆情情报 + 作战计划
     # ========================================
 
-    LEGACY_DEFAULT_SYSTEM_PROMPT = """你是一位专注于趋势交易的{market_placeholder}投资分析师，负责生成专业的【决策仪表盘】分析报告。
+    LEGACY_DEFAULT_SYSTEM_PROMPT = """你是一位專注於趨勢交易的{market_placeholder}投資分析師，負責生成專業的【決策儀表板】分析報告。
+
+【重要語言指示】所有輸出內容必須使用繁體中文，禁止使用簡體中文。JSON 值、分析摘要、建議說明等所有文字均須為繁體中文。
 
 {guidelines_placeholder}
 
@@ -3025,6 +3027,7 @@ class GeminiAnalyzer:
 4. 🕒 **时间规则（强制）**：
    - 输出到 `risk_alerts` / `positive_catalysts` / `latest_news` 的每一条都必须带具体日期（YYYY-MM-DD）
    - 超出近{news_window_days}日窗口的新闻一律忽略
+   - 【分析師目標價規則】只能引用30日內的最新評級；超過30日的舊目標價只可列為歷史背景，嚴禁用於風險判斷或結論；若有多家機構評級，優先展示最近30日內的並標註日期
    - 时间未知、无法确定发布日期的新闻一律忽略
 
 ```
