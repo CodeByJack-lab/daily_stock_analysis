@@ -634,13 +634,12 @@ const HomePage: React.FC = () => {
                 type="button"
                 variant="secondary"
                 size="md"
-                isLoading={isSubmittingMarketReview}
-                loadingText="提交中"
-                onClick={() => void handleTriggerMarketReview()}
-                className="h-10 flex-1 whitespace-nowrap md:flex-none"
+                disabled
+                title="大盤覆盤功能已停用（本地客製化移除 A 股/港股 market review）"
+                className="h-10 flex-1 whitespace-nowrap md:flex-none opacity-50 cursor-not-allowed"
               >
                 <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                大盤覆盤
+                大盤覆盤（已停用）
               </Button>
               <button
                 type="button"

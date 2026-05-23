@@ -292,9 +292,9 @@ export const IntelligentImport: React.FC<IntelligentImportProps> = ({
   return (
     <div className="space-y-4">
       <div className="settings-surface-panel settings-border-strong rounded-xl border p-4 shadow-soft-card">
-        <p className="text-sm font-medium text-foreground">支持圖片、CSV/Excel 文件與剪貼板文本</p>
+        <p className="text-sm font-medium text-foreground">支持 CSV/Excel 文件與剪貼板文本</p>
         <p className="mt-1 text-xs leading-5 text-secondary-text">
-          圖片識別需預先配置 Vision 模型。建議先人工核對解析結果，再合併到自選股。
+          圖片識別功能已停用（本地客製化移除 Vision LLM extractor）。請使用 CSV/Excel 或貼上文本。
         </p>
       </div>
 
@@ -310,10 +310,11 @@ export const IntelligentImport: React.FC<IntelligentImportProps> = ({
           <Button
             type="button"
             variant="settings-secondary"
-            disabled={disabled || isLoading}
-            onClick={() => openFilePicker(imageInputRef)}
+            disabled
+            title="圖片識別已停用（本地客製化移除 Vision LLM extractor）"
+            className="opacity-50 cursor-not-allowed"
           >
-            選擇圖片
+            選擇圖片（已停用）
           </Button>
           <input
             ref={imageInputRef}
@@ -321,7 +322,7 @@ export const IntelligentImport: React.FC<IntelligentImportProps> = ({
             accept=".jpg,.jpeg,.png,.webp,.gif"
             className="hidden"
             onChange={onImageInput}
-            disabled={disabled || isLoading}
+            disabled
           />
           <Button
             type="button"

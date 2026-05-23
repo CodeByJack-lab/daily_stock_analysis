@@ -20,6 +20,10 @@ INCLUDE_GLOBS = [
     "strategies/*.yaml",
     "strategies/*.yml",
     "strategies/README.md",
+    # Backend Python files that produce TG / notification output.
+    "src/notification.py",
+    "src/report_language.py",
+    "src/notification_sender/telegram_sender.py",
 ]
 
 WEB_SRC = ROOT / "apps" / "dsa-web" / "src"
