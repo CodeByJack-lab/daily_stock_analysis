@@ -26,7 +26,6 @@ const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isSubmittingMarketReview, setIsSubmittingMarketReview] = useState(false);
   const [marketReviewNotice, setMarketReviewNotice] = useState<MarketReviewNotice>(null);
   const [marketReviewError, setMarketReviewError] = useState<ParsedApiError | null>(null);
   const [marketReviewReport, setMarketReviewReport] = useState<string | null>(null);
@@ -34,35 +33,15 @@ const HomePage: React.FC = () => {
   const [analysisSkills, setAnalysisSkills] = useState<SkillInfo[]>([]);
   const [selectedStrategyId, setSelectedStrategyId] = useState('');
   const [strategyMenuOpen, setStrategyMenuOpen] = useState(false);
-  const marketReviewPollTimer = useRef<number | null>(null);
   const dashboardScrollRef = useRef<HTMLElement | null>(null);
   const strategyMenuRef = useRef<HTMLDivElement | null>(null);
   const strategyButtonRef = useRef<HTMLButtonElement | null>(null);
   const strategyItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const strategyInitialFocusIndexRef = useRef<number | null>(null);
 
-  const stopMarketReviewPolling = useCallback(() => {
-    if (marketReviewPollTimer.current !== null) {
-      window.clearInterval(marketReviewPollTimer.current);
-      marketReviewPollTimer.current = null;
-    }
-  }, []);
+  // marketReviewPollTimer / stopMarketReviewPolling / scrollMarketReviewFeedbackIntoView
+  // removed: market review feature was removed in local customisation cleanup.
 
-  const scrollMarketReviewFeedbackIntoView = useCallback(() => {
-    const scrollContainer = dashboardScrollRef.current;
-    if (!scrollContainer) {
-      return;
-    }
-
-    if (typeof scrollContainer.scrollTo === 'function') {
-      scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    scrollContainer.scrollTop = 0;
-  }, []);
-
-  useEffect(() => stopMarketReviewPolling, [stopMarketReviewPolling]);
   const [setupStatus, setSetupStatus] = useState<SetupStatusResponse | null>(null);
 
   const {
@@ -341,143 +320,8 @@ const HomePage: React.FC = () => {
     });
   }, [selectedAnalysisSkills, selectedReport, submitAnalysis]);
 
-  const pollMarketReviewStatus = useCallback(
-    async (taskId: string) => {
-      stopMarketReviewPolling();
-
-      const maxAttempts = 120;
-      const intervalMs = 2000;
-      let attempts = 0;
-
-      const poll = async (): Promise<boolean> => {
-        if (attempts >= maxAttempts) {
-          stopMarketReviewPolling();
-          setMarketReviewReport(null);
-          setMarketReviewNotice({
-            variant: 'danger',
-            title: '大盤覆盤已超時',
-            message: '任務長時間未返回最終結果，請在任務列表/歷史中查看。',
-          });
-          scrollMarketReviewFeedbackIntoView();
-          return false;
-        }
-
-        attempts += 1;
-
-        try {
-          const status = await analysisApi.getStatus(taskId);
-          if (status.status === 'pending' || status.status === 'processing') {
-            setMarketReviewReport(null);
-            const progress = typeof status.progress === 'number'
-              ? `${status.progress}%`
-              : '進行中';
-            setMarketReviewNotice({
-              variant: 'warning',
-              title: '大盤覆盤進行中',
-              message: `任務狀態：${status.status}（${progress}）`,
-            });
-            return true;
-          }
-
-          if (status.status === 'completed') {
-            stopMarketReviewPolling();
-            const marketReviewText = typeof status.marketReviewReport === 'string'
-              ? status.marketReviewReport
-              : '';
-            setMarketReviewReport(marketReviewText ? marketReviewText.trim() : null);
-            setMarketReviewNotice({
-              variant: 'success',
-              title: '大盤覆盤已完成',
-              message: marketReviewText ? '大盤覆盤任務已完成，結果如下：' : '大盤覆盤任務已完成，結果已生成並按配置推送。',
-            });
-            setMarketReviewError(null);
-            scrollMarketReviewFeedbackIntoView();
-            return false;
-          }
-
-          if (status.status === 'failed') {
-            stopMarketReviewPolling();
-            setMarketReviewReport(null);
-            setMarketReviewError(
-              getParsedApiError({
-                response: {
-                  status: 500,
-                  data: {
-                    error: 'market_review_failed',
-                    message: status.error || '大盤覆盤執行失敗。',
-                  },
-                },
-              }),
-            );
-            setMarketReviewNotice(null);
-            scrollMarketReviewFeedbackIntoView();
-            return false;
-          }
-
-          stopMarketReviewPolling();
-          setMarketReviewReport(null);
-          setMarketReviewNotice({
-            variant: 'danger',
-            title: '大盤覆盤狀態異常',
-            message: `收到未知任務狀態：${status.status}`,
-          });
-          scrollMarketReviewFeedbackIntoView();
-          return false;
-        } catch (err: unknown) {
-          const parsed = getParsedApiError(err);
-          if (attempts >= maxAttempts) {
-            stopMarketReviewPolling();
-            setMarketReviewReport(null);
-            setMarketReviewError(parsed);
-            setMarketReviewNotice(null);
-            scrollMarketReviewFeedbackIntoView();
-            return false;
-          }
-          return true;
-        }
-
-        return true;
-      };
-
-      if (await poll()) {
-        marketReviewPollTimer.current = window.setInterval(() => {
-          void poll().then((shouldContinue) => {
-            if (!shouldContinue) {
-              stopMarketReviewPolling();
-            }
-          });
-        }, intervalMs);
-      }
-    },
-    [scrollMarketReviewFeedbackIntoView, stopMarketReviewPolling],
-  );
-
-  const handleTriggerMarketReview = useCallback(async () => {
-    setIsSubmittingMarketReview(true);
-    setMarketReviewNotice(null);
-    setMarketReviewError(null);
-    setMarketReviewReport(null);
-    scrollMarketReviewFeedbackIntoView();
-    try {
-      const result = await analysisApi.triggerMarketReview({ sendNotification: notify });
-      setMarketReviewNotice({
-        variant: 'success',
-        title: '大盤覆盤已提交',
-        message: result.message,
-      });
-      scrollMarketReviewFeedbackIntoView();
-
-      if (result.taskId) {
-        await pollMarketReviewStatus(result.taskId);
-      }
-    } catch (err: unknown) {
-      setMarketReviewError(getParsedApiError(err));
-      setMarketReviewNotice(null);
-      scrollMarketReviewFeedbackIntoView();
-    } finally {
-      setIsSubmittingMarketReview(false);
-    }
-  }, [notify, pollMarketReviewStatus, scrollMarketReviewFeedbackIntoView]);
+  // pollMarketReviewStatus + handleTriggerMarketReview removed: market review
+  // feature was removed in local customisation cleanup.
 
   const handleCopyMarketReviewReport = useCallback(() => {
     if (!marketReviewReport) {
