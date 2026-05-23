@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [chore] services: 移除 image_stock_extractor（POST /extract-from-image 端點同 vision LLM service）與 social_sentiment_service（pipeline.py 對應 2 個 call site 同 init block）及對應 test
 - [chore] i18n: 用 OpenCC s2hk + revert overrides 將 strategies/ 與 apps/dsa-web/src/ 內嘅簡體中文轉成繁體（5,667 字符替換、68 檔），新增 scripts/convert_simp_to_trad.py 可重複運行
 - [改进] analyzer: 系統 prompt 加入「當前時間（絕對權威）」與「數據引用紀律」兩段強制規則，緩解 NVIDIA / 細模型對 training-data 日期或股價嘅 hallucination；時間由 ZoneInfo 動態注入 HKT + ET 兩個時區
+- [新功能] analyzer: 加入 price echo back 驗證（_verify_price_echo），cross-check LLM 引用嘅 dashboard.data_perspective.price_position.current_price 與輸入數據是否一致（容差 1%），偵測到 hallucination 即將分析標記為不可靠（success=False, confidence=低, risk_warning 加警告）
 
 ## [3.18.0] - 2026-05-21
 

@@ -1530,6 +1530,46 @@ _MA_EVENT_KEYWORDS: Tuple[str, ...] = (
 )
 
 
+def _verify_price_echo(
+    result: "AnalysisResult",
+    context: Dict[str, Any],
+    tolerance: float = 0.01,
+) -> Tuple[bool, str]:
+    """Cross-check the LLM-cited current_price against the input data section.
+
+    Returns (passed, diagnostic). Verification is skipped (returns True) when
+    either side is missing — we only flag explicit mismatches.
+    """
+    input_price: Optional[float] = None
+    realtime = context.get("realtime") if isinstance(context, dict) else None
+    if isinstance(realtime, dict):
+        input_price = _coerce_numeric_value(realtime.get("price"))
+    if input_price is None:
+        today = context.get("today") if isinstance(context, dict) else None
+        if isinstance(today, dict):
+            input_price = _coerce_numeric_value(today.get("close"))
+    if input_price is None or input_price <= 0:
+        return True, "input price unavailable; verification skipped"
+
+    cited_price: Optional[float] = None
+    if isinstance(result.dashboard, dict):
+        dp = result.dashboard.get("data_perspective")
+        if isinstance(dp, dict):
+            pp = dp.get("price_position")
+            if isinstance(pp, dict):
+                cited_price = _coerce_numeric_value(pp.get("current_price"))
+    if cited_price is None or cited_price <= 0:
+        return True, "LLM did not cite current_price; verification skipped"
+
+    diff_ratio = abs(cited_price - input_price) / input_price
+    if diff_ratio > tolerance:
+        return False, (
+            f"input={input_price:.4f}, cited={cited_price:.4f}, "
+            f"diff={diff_ratio:.2%} > tolerance {tolerance:.0%}"
+        )
+    return True, f"ok (diff={diff_ratio:.2%})"
+
+
 def _detect_ma_event(news_context: Optional[str]) -> bool:
     """Return True when news_context contains M&A-related keywords."""
     if not news_context:
@@ -2046,6 +2086,12 @@ class GeminiAnalyzer:
 - If a required data point is missing in the data section, write "no data" — do not invent a substitute.
 - When citing a value, it must match the data section exactly; if ambiguous, defer to the data section.
 
+## Self-Verification (mandatory)
+
+- `dashboard.data_perspective.price_position.current_price` MUST equal the current real-time price from the data section (or today's close when no real-time quote is provided).
+- The system will cross-check this after parsing; on mismatch the analysis is flagged unreliable and confidence is forced to "Low".
+- If you cannot quote the current price, leave the field `null` or omit it — never guess or use a pre-cutoff value from training data.
+
 ## Output Language (highest priority)
 
 - Keep all JSON keys unchanged.
@@ -2069,6 +2115,12 @@ class GeminiAnalyzer:
 - **嚴禁**從訓練記憶拼湊任何數字、日期或敘述。
 - 若數據段內無相應內容，直接寫「無數據」，不得編造替代值。
 - 引用任何數值時必須與數據段一致；如有歧義，以數據段為準。
+
+## 自我驗證（強制執行）
+
+- `dashboard.data_perspective.price_position.current_price` **必須等於**數據段中嘅當前實時價格（或當日收盤價）。
+- 系統會於分析後自動 cross-check；若不一致，本次分析將被標記為「不可靠」，confidence 強制降為「低」。
+- 若無法引用當前價，直接寫 `null` 或省略該欄，**禁止猜測或填入訓練資料中嘅舊價**。
 
 ## 輸出語言與格式規範（最高優先級）
 
@@ -2794,6 +2846,27 @@ class GeminiAnalyzer:
                         missing_fields,
                     )
                     break
+
+            # Price echo verification — flag hallucinated current_price quotes
+            echo_passed, echo_diag = _verify_price_echo(result, context)
+            if not echo_passed:
+                logger.warning(
+                    "[price_echo] %s(%s) HALLUCINATION SUSPECTED: %s",
+                    name, code, echo_diag,
+                )
+                warning_text = (
+                    f"⚠️ 價格驗證失敗：LLM 引用嘅當前價與數據源不符（{echo_diag}），"
+                    "本次分析結果可能不可靠"
+                )
+                result.risk_warning = (
+                    f"{warning_text}\n{result.risk_warning}"
+                    if result.risk_warning else warning_text
+                )
+                result.confidence_level = "低" if report_language == "zh" else "Low"
+                result.success = False
+                result.error_message = f"price_echo_mismatch: {echo_diag}"
+            else:
+                logger.debug("[price_echo] %s(%s) %s", name, code, echo_diag)
 
             # M&A / corporate event guard — override LLM advice when acquisition keywords found
             if _detect_ma_event(news_context):
