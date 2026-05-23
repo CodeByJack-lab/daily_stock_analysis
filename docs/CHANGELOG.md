@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [改进] analyzer: 在系統 prompt 加入分析師評級30日時效強制規則，超過30日的舊目標價僅供歷史參考
 - [新功能] analyzer: 新增 M&A 企業事件偵測（_detect_ma_event / _inject_ma_warning），發現併購關鍵詞時自動注入警告並將決策覆寫為觀望
 - [改进] strategies/bull_trend.yaml: instructions 全面改為繁體中文，使用台灣/香港慣用詞彙
+- [chore] data_provider: 移除 A股 5 個 fetcher（akshare/efinance/baostock/pytdx/tushare）及其關聯 test、scripts、patches；DataFetcherManager 改以 yfinance 為基線，可選 longbridge/finnhub/alphavantage
 
 ## [3.18.0] - 2026-05-21
 
