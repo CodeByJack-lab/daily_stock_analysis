@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [chore] notification: 移除 12 個非 Telegram sender（astrbot/custom_webhook/discord/email/feishu/gotify/ntfy/pushover/pushplus/serverchan3/slack/wechat）；NotificationService 改為僅繼承 TelegramSender，notification_routing 與 system_config_service 同步收斂為 telegram-only
 - [chore] bot/platforms: 移除 dingtalk/dingtalk_stream/discord/feishu_stream 平台與 handle_feishu_webhook/handle_dingtalk_webhook/handle_wecom_webhook 包裝；main.py 的 stream client 啟動和 notification.py 的 feishu/dingtalk context-channel 回覆全部停用
 - [chore] market_review: 移除 src/core/market_review.py / market_review_lock.py / market_review_runtime.py / market_profile.py / market_strategy.py、src/market_analyzer.py、bot/commands/market.py、data_provider/tickflow_fetcher.py 及對應 8 個 test；main.py 移除 --market-review/--no-market-review CLI 開關，API endpoints 與 schemas 同步移除 MarketReview 相關內容
+- [chore] desktop: 移除 apps/dsa-desktop/、6 個 desktop build/run script 同 .github/workflows/desktop-release.yml；Web UI 保留
+- [chore] services: 移除 image_stock_extractor（POST /extract-from-image 端點同 vision LLM service）與 social_sentiment_service（pipeline.py 對應 2 個 call site 同 init block）及對應 test
 
 ## [3.18.0] - 2026-05-21
 

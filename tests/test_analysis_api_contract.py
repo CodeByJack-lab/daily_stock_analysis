@@ -38,7 +38,6 @@ except Exception:  # pragma: no cover - optional dependency environments
 
 from src.enums import ReportType
 from src.services.analysis_service import AnalysisService
-from src.services.image_stock_extractor import _call_litellm_vision
 from src.services.task_queue import AnalysisTaskQueue, TaskStatus
 
 
