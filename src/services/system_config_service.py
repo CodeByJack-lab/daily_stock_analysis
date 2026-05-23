@@ -45,8 +45,7 @@ from src.core.config_registry import (
 from src.llm.errors import call_litellm_with_param_recovery
 from src.llm.generation_params import apply_litellm_generation_params
 from src.notification_noise import validate_notification_timezone
-from src.notification_sender.gotify_sender import resolve_gotify_message_endpoint
-from src.notification_sender.ntfy_sender import resolve_ntfy_endpoint
+# Gotify / ntfy senders removed in Step 2 cleanup.
 
 logger = logging.getLogger(__name__)
 
@@ -1783,38 +1782,7 @@ class SystemConfigService:
                     }
                 )
 
-        if key == "NTFY_URL" and value.strip():
-            allowed_schemes = tuple(validation.get("allowed_schemes", ["http", "https"]))
-            if SystemConfigService._is_valid_url(value.strip(), allowed_schemes=allowed_schemes):
-                ntfy_server_url, ntfy_topic = resolve_ntfy_endpoint(value)
-                if not ntfy_server_url or not ntfy_topic:
-                    issues.append(
-                        {
-                            "key": key,
-                            "code": "invalid_ntfy_url",
-                            "message": "NTFY_URL must include a topic path, e.g. https://ntfy.sh/my-topic",
-                            "severity": "error",
-                            "expected": "ntfy publish endpoint with topic path",
-                            "actual": value,
-                        }
-                    )
-
-        if key == "GOTIFY_URL" and value.strip():
-            allowed_schemes = tuple(validation.get("allowed_schemes", ["http", "https"]))
-            if SystemConfigService._is_valid_url(value.strip(), allowed_schemes=allowed_schemes):
-                gotify_endpoint = resolve_gotify_message_endpoint(value)
-                if not gotify_endpoint:
-                    issues.append(
-                        {
-                            "key": key,
-                            "code": "invalid_gotify_url",
-                            "message": "GOTIFY_URL must be a Gotify server base URL and must not include /message",
-                            "severity": "error",
-                            "expected": "Gotify server base URL, e.g. https://gotify.example",
-                            "actual": value,
-                        }
-                    )
-
+        # NTFY_URL / GOTIFY_URL validations removed with their senders (Step 2 cleanup).
         return issues
 
     @staticmethod
@@ -1927,21 +1895,7 @@ class SystemConfigService:
         channel: str,
         effective_map: Dict[str, str],
     ) -> Optional[str]:
-        if channel == "ntfy":
-            ntfy_url = (effective_map.get("NTFY_URL") or "").strip()
-            if not ntfy_url:
-                return None
-            ntfy_server_url, ntfy_topic = resolve_ntfy_endpoint(ntfy_url)
-            if ntfy_server_url and ntfy_topic:
-                return None
-            return "NTFY_URL 必须包含 topic path，例如 https://ntfy.sh/my-topic。"
-        if channel == "gotify":
-            gotify_url = (effective_map.get("GOTIFY_URL") or "").strip()
-            if not gotify_url:
-                return None
-            if resolve_gotify_message_endpoint(gotify_url):
-                return None
-            return "GOTIFY_URL 必须是 Gotify server base URL，不包含 /message。"
+        # ntfy / gotify channels removed in Step 2 cleanup.
         return None
 
     def _build_notification_test_config(self, effective_map: Dict[str, str]) -> Config:
@@ -1981,64 +1935,26 @@ class SystemConfigService:
         content: str,
         timeout_seconds: float,
     ) -> Dict[str, Any]:
-        from src.notification_sender import (
-            AstrbotSender,
-            CustomWebhookSender,
-            DiscordSender,
-            EmailSender,
-            FeishuSender,
-            GotifySender,
-            NtfySender,
-            PushoverSender,
-            PushplusSender,
-            Serverchan3Sender,
-            SlackSender,
-            TelegramSender,
-            WechatSender,
-        )
+        from src.notification_sender import TelegramSender
 
         started_at = time.perf_counter()
         target = self._resolve_notification_test_target(channel, effective_map)
         titled_content = self._build_notification_test_content(title, content)
 
-        if channel == "custom":
-            attempts = CustomWebhookSender(config).test_custom_webhooks(
-                titled_content,
-                timeout_seconds=timeout_seconds,
-            )
+        if channel != "telegram":
             latency_ms = int((time.perf_counter() - started_at) * 1000)
-            success_count = sum(1 for attempt in attempts if bool(attempt.get("success")))
-            total_count = len(attempts)
-            success = success_count > 0
-            if success_count == total_count and total_count > 0:
-                message = f"自定义 Webhook 通知测试成功（{success_count}/{total_count}）"
-            elif success_count > 0:
-                message = f"自定义 Webhook 通知测试部分成功（{success_count}/{total_count}）"
-            else:
-                message = f"自定义 Webhook 通知测试失败（{success_count}/{total_count}）"
             return self._build_notification_test_result(
-                success=success,
-                message=message,
-                error_code=None if success else "send_failed",
+                success=False,
+                message=f"{channel} 渠道已在 Step 2 清理中移除，仅支持 telegram。",
+                error_code="channel_removed",
                 stage="notification_send",
-                retryable=any(bool(attempt.get("retryable")) for attempt in attempts),
+                retryable=False,
                 latency_ms=latency_ms,
-                attempts=attempts,
+                attempts=[],
             )
 
         dispatch = {
-            "wechat": lambda: WechatSender(config).send_to_wechat(titled_content, timeout_seconds=timeout_seconds),
-            "feishu": lambda: FeishuSender(config).send_to_feishu(titled_content, timeout_seconds=timeout_seconds),
             "telegram": lambda: TelegramSender(config).send_to_telegram(titled_content, timeout_seconds=timeout_seconds),
-            "email": lambda: EmailSender(config).send_to_email(content, subject=title, timeout_seconds=timeout_seconds),
-            "pushover": lambda: PushoverSender(config).send_to_pushover(content, title=title, timeout_seconds=timeout_seconds),
-            "ntfy": lambda: NtfySender(config).send_to_ntfy(content, title=title, timeout_seconds=timeout_seconds),
-            "gotify": lambda: GotifySender(config).send_to_gotify(content, title=title, timeout_seconds=timeout_seconds),
-            "pushplus": lambda: PushplusSender(config).send_to_pushplus(content, title=title, timeout_seconds=timeout_seconds),
-            "serverchan3": lambda: Serverchan3Sender(config).send_to_serverchan3(content, title=title, timeout_seconds=timeout_seconds),
-            "discord": lambda: DiscordSender(config).send_to_discord(titled_content, timeout_seconds=timeout_seconds),
-            "slack": lambda: SlackSender(config).send_to_slack(titled_content, timeout_seconds=timeout_seconds),
-            "astrbot": lambda: AstrbotSender(config).send_to_astrbot(titled_content, timeout_seconds=timeout_seconds),
         }
 
         ok = bool(dispatch[channel]())
@@ -2270,15 +2186,13 @@ class SystemConfigService:
 
     @staticmethod
     def _has_valid_ntfy_endpoint(effective_map: Dict[str, str]) -> bool:
-        ntfy_server_url, ntfy_topic = resolve_ntfy_endpoint(effective_map.get("NTFY_URL"))
-        return bool(ntfy_server_url and ntfy_topic)
+        # ntfy sender removed in Step 2 cleanup; the channel is never configured.
+        return False
 
     @staticmethod
     def _has_valid_gotify_config(effective_map: Dict[str, str]) -> bool:
-        return bool(
-            resolve_gotify_message_endpoint(effective_map.get("GOTIFY_URL"))
-            and (effective_map.get("GOTIFY_TOKEN") or "").strip()
-        )
+        # gotify sender removed in Step 2 cleanup; the channel is never configured.
+        return False
 
     @classmethod
     def _anspire_legacy_llm_enabled(cls, effective_map: Dict[str, str]) -> bool:

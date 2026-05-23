@@ -20,8 +20,7 @@ from src.notification_routing import (
     ROUTABLE_NOTIFICATION_CHANNELS,
     split_notification_route_channels,
 )
-from src.notification_sender.gotify_sender import resolve_gotify_message_endpoint
-from src.notification_sender.ntfy_sender import resolve_ntfy_endpoint
+# Gotify / ntfy senders removed in Step 2 cleanup; no validators needed.
 
 KeyTier = Literal["minimal", "advanced"]
 IssueSeverity = Literal["error", "warning", "info"]
@@ -329,29 +328,7 @@ def run_notification_diagnostics(config: Config) -> NotificationDiagnosticResult
             )
         )
 
-    if _has(config, "ntfy_url"):
-        ntfy_server_url, ntfy_topic = resolve_ntfy_endpoint(getattr(config, "ntfy_url", None))
-        if not ntfy_server_url or not ntfy_topic:
-            errors.append(
-                _issue(
-                    "error",
-                    "invalid_ntfy_url",
-                    "NTFY_URL 必须包含 topic path，例如 https://ntfy.sh/my-topic。",
-                    key="NTFY_URL",
-                )
-            )
-
-    if _has(config, "gotify_url"):
-        gotify_endpoint = resolve_gotify_message_endpoint(getattr(config, "gotify_url", None))
-        if not gotify_endpoint:
-            errors.append(
-                _issue(
-                    "error",
-                    "invalid_gotify_url",
-                    "GOTIFY_URL 必须是 Gotify server base URL，不包含 /message，例如 https://gotify.example。",
-                    key="GOTIFY_URL",
-                )
-            )
+    # ntfy_url / gotify_url validations removed with their senders (Step 2 cleanup).
 
     _require_pair(
         config,

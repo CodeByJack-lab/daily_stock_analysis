@@ -49,24 +49,7 @@ from src.report_language import (
 from bot.models import BotMessage
 from src.utils.sanitize import sanitize_diagnostic_text
 from src.utils.data_processing import normalize_model_used
-from src.notification_sender import (
-    AstrbotSender,
-    CustomWebhookSender,
-    DiscordSender,
-    EmailSender,
-    FeishuSender,
-    GotifySender,
-    NtfySender,
-    PushoverSender,
-    PushplusSender,
-    Serverchan3Sender,
-    SlackSender,
-    TelegramSender,
-    WechatSender,
-    WECHAT_IMAGE_MAX_BYTES,
-    resolve_gotify_message_endpoint,
-    resolve_ntfy_endpoint,
-)
+from src.notification_sender import TelegramSender
 
 logger = logging.getLogger(__name__)
 
@@ -164,37 +147,14 @@ class ChannelDetector:
         return names.get(channel, "未知渠道")
 
 
-class NotificationService(
-    AstrbotSender,
-    CustomWebhookSender,
-    DiscordSender,
-    EmailSender,
-    FeishuSender,
-    GotifySender,
-    NtfySender,
-    PushoverSender,
-    PushplusSender,
-    Serverchan3Sender,
-    SlackSender,
-    TelegramSender,
-    WechatSender
-):
+class NotificationService(TelegramSender):
     """
-    通知服务
-    
+    通知服务（仅 Telegram，Step 2 清理已移除其他 sender）
+
     职责：
     1. 生成 Markdown 格式的分析日报
-    2. 向所有已配置的渠道推送消息（多渠道并发）
+    2. 向 Telegram 推送消息
     3. 支持本地保存日报
-    
-    支持的渠道：
-    - 企业微信 Webhook
-    - 飞书 Webhook
-    - Telegram Bot
-    - 邮件 SMTP
-    - Pushover（手机/桌面推送）
-    
-    注意：所有已配置的渠道都会收到推送
     """
     
     def __init__(self, source_message: Optional[BotMessage] = None):
@@ -221,20 +181,8 @@ class NotificationService(
         self._report_show_llm_model = getattr(config, 'report_show_llm_model', True)
         self._history_compare_cache: Dict[Tuple[int, Tuple[Tuple[str, str], ...]], Dict[str, List[Dict[str, Any]]]] = {}
 
-        # 初始化各渠道
-        AstrbotSender.__init__(self, config)
-        CustomWebhookSender.__init__(self, config)
-        DiscordSender.__init__(self, config)
-        EmailSender.__init__(self, config)
-        FeishuSender.__init__(self, config)
-        GotifySender.__init__(self, config)
-        NtfySender.__init__(self, config)
-        PushoverSender.__init__(self, config)
-        PushplusSender.__init__(self, config)
-        Serverchan3Sender.__init__(self, config)
-        SlackSender.__init__(self, config)
+        # 初始化 Telegram 渠道（其他 sender 已在 Step 2 清理中移除）
         TelegramSender.__init__(self, config)
-        WechatSender.__init__(self, config)
 
         # 检测所有已配置的渠道
         self._available_channels = self._detect_all_channels()
@@ -346,67 +294,12 @@ class NotificationService(
         sender objects, so diagnostics and runtime use the same channel truth.
         Runtime-only context channels are handled by instance methods.
         """
-        channels = []
-
-        if getattr(config, "wechat_webhook_url", None):
-            channels.append(NotificationChannel.WECHAT)
-
-        if getattr(config, "feishu_webhook_url", None):
-            channels.append(NotificationChannel.FEISHU)
-
+        channels: List[NotificationChannel] = []
         if (
             getattr(config, "telegram_bot_token", None)
             and getattr(config, "telegram_chat_id", None)
         ):
             channels.append(NotificationChannel.TELEGRAM)
-
-        if getattr(config, "email_sender", None) and getattr(config, "email_password", None):
-            channels.append(NotificationChannel.EMAIL)
-
-        if (
-            getattr(config, "pushover_user_key", None)
-            and getattr(config, "pushover_api_token", None)
-        ):
-            channels.append(NotificationChannel.PUSHOVER)
-
-        ntfy_server_url, ntfy_topic = resolve_ntfy_endpoint(getattr(config, "ntfy_url", None))
-        if ntfy_server_url and ntfy_topic:
-            channels.append(NotificationChannel.NTFY)
-
-        gotify_endpoint = resolve_gotify_message_endpoint(getattr(config, "gotify_url", None))
-        if gotify_endpoint and (getattr(config, "gotify_token", None) or "").strip():
-            channels.append(NotificationChannel.GOTIFY)
-
-        if getattr(config, "pushplus_token", None):
-            channels.append(NotificationChannel.PUSHPLUS)
-
-        if getattr(config, "serverchan3_sendkey", None):
-            channels.append(NotificationChannel.SERVERCHAN3)
-
-        if getattr(config, "custom_webhook_urls", None):
-            channels.append(NotificationChannel.CUSTOM)
-
-        if (
-            getattr(config, "discord_webhook_url", None)
-            or (
-                getattr(config, "discord_bot_token", None)
-                and getattr(config, "discord_main_channel_id", None)
-            )
-        ):
-            channels.append(NotificationChannel.DISCORD)
-
-        if (
-            getattr(config, "slack_webhook_url", None)
-            or (
-                getattr(config, "slack_bot_token", None)
-                and getattr(config, "slack_channel_id", None)
-            )
-        ):
-            channels.append(NotificationChannel.SLACK)
-
-        if getattr(config, "astrbot_url", None):
-            channels.append(NotificationChannel.ASTRBOT)
-
         return channels
 
     def _detect_all_channels(self) -> List[NotificationChannel]:
@@ -2007,12 +1900,6 @@ class NotificationService(
         """
         if channel.value not in self._markdown_to_image_channels or image_bytes is None:
             return False
-        if channel == NotificationChannel.WECHAT and len(image_bytes) > WECHAT_IMAGE_MAX_BYTES:
-            logger.warning(
-                "企业微信图片超限 (%d bytes)，回退为 Markdown 文本发送",
-                len(image_bytes),
-            )
-            return False
         return True
 
     @staticmethod
@@ -2029,47 +1916,13 @@ class NotificationService(
         email_send_to_all: bool,
     ) -> bool:
         use_image = self._should_use_image_for_channel(channel, image_bytes)
-        if channel == NotificationChannel.WECHAT:
-            if use_image:
-                return self._send_wechat_image(image_bytes)
-            return self.send_to_wechat(content)
-        if channel == NotificationChannel.FEISHU:
-            return self.send_to_feishu(content)
+        # email_stock_codes / email_send_to_all are retained as no-op parameters
+        # to preserve the public send_with_results() signature after Step 2 cleanup.
+        _ = (email_stock_codes, email_send_to_all)
         if channel == NotificationChannel.TELEGRAM:
             if use_image:
                 return self._send_telegram_photo(image_bytes)
             return self.send_to_telegram(content)
-        if channel == NotificationChannel.EMAIL:
-            receivers = None
-            if email_send_to_all and self._stock_email_groups:
-                receivers = self.get_all_email_receivers()
-            elif email_stock_codes and self._stock_email_groups:
-                receivers = self.get_receivers_for_stocks(email_stock_codes)
-            if use_image:
-                return self._send_email_with_inline_image(image_bytes, receivers=receivers)
-            return self.send_to_email(content, receivers=receivers)
-        if channel == NotificationChannel.PUSHOVER:
-            return self.send_to_pushover(content)
-        if channel == NotificationChannel.NTFY:
-            return self.send_to_ntfy(content)
-        if channel == NotificationChannel.GOTIFY:
-            return self.send_to_gotify(content)
-        if channel == NotificationChannel.PUSHPLUS:
-            return self.send_to_pushplus(content)
-        if channel == NotificationChannel.SERVERCHAN3:
-            return self.send_to_serverchan3(content)
-        if channel == NotificationChannel.CUSTOM:
-            if use_image:
-                return self._send_custom_webhook_image(image_bytes, fallback_content=content)
-            return self.send_to_custom(content)
-        if channel == NotificationChannel.DISCORD:
-            return self.send_to_discord(content)
-        if channel == NotificationChannel.SLACK:
-            if use_image:
-                return self._send_slack_image(image_bytes, fallback_content=content)
-            return self.send_to_slack(content)
-        if channel == NotificationChannel.ASTRBOT:
-            return self.send_to_astrbot(content)
         logger.warning(f"不支持的通知渠道: {channel}")
         return False
 
