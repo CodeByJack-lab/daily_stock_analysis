@@ -15,53 +15,53 @@ export interface AlertRuleBusyState {
 }
 
 const ENABLED_FILTER_OPTIONS = [
-  { value: 'all', label: '全部状态' },
-  { value: 'enabled', label: '已启用' },
+  { value: 'all', label: '全部狀態' },
+  { value: 'enabled', label: '已啓用' },
   { value: 'disabled', label: '已停用' },
 ];
 
 const ALERT_TYPE_FILTER_OPTIONS = [
-  { value: 'all', label: '全部类型' },
-  { value: 'price_cross', label: '价格突破' },
-  { value: 'price_change_percent', label: '涨跌幅' },
+  { value: 'all', label: '全部類型' },
+  { value: 'price_cross', label: '價格突破' },
+  { value: 'price_change_percent', label: '漲跌幅' },
   { value: 'volume_spike', label: '成交量放大' },
-  { value: 'ma_price_cross', label: '价格均线穿越' },
-  { value: 'rsi_threshold', label: 'RSI 阈值' },
+  { value: 'ma_price_cross', label: '價格均線穿越' },
+  { value: 'rsi_threshold', label: 'RSI 閾值' },
   { value: 'macd_cross', label: 'MACD 金叉/死叉' },
   { value: 'kdj_cross', label: 'KDJ 金叉/死叉' },
-  { value: 'cci_threshold', label: 'CCI 阈值' },
-  { value: 'portfolio_stop_loss', label: '组合止损' },
-  { value: 'portfolio_concentration', label: '组合集中度' },
-  { value: 'portfolio_drawdown', label: '组合回撤' },
-  { value: 'portfolio_price_stale', label: '组合价格状态' },
+  { value: 'cci_threshold', label: 'CCI 閾值' },
+  { value: 'portfolio_stop_loss', label: '組合止損' },
+  { value: 'portfolio_concentration', label: '組合集中度' },
+  { value: 'portfolio_drawdown', label: '組合回撤' },
+  { value: 'portfolio_price_stale', label: '組合價格狀態' },
 ];
 
 const typeLabel: Record<AlertType, string> = {
-  price_cross: '价格突破',
-  price_change_percent: '涨跌幅',
+  price_cross: '價格突破',
+  price_change_percent: '漲跌幅',
   volume_spike: '成交量放大',
-  ma_price_cross: '价格均线穿越',
-  rsi_threshold: 'RSI 阈值',
+  ma_price_cross: '價格均線穿越',
+  rsi_threshold: 'RSI 閾值',
   macd_cross: 'MACD 金叉/死叉',
   kdj_cross: 'KDJ 金叉/死叉',
-  cci_threshold: 'CCI 阈值',
-  portfolio_stop_loss: '组合止损',
-  portfolio_concentration: '组合集中度',
-  portfolio_drawdown: '组合回撤',
-  portfolio_price_stale: '组合价格状态',
+  cci_threshold: 'CCI 閾值',
+  portfolio_stop_loss: '組合止損',
+  portfolio_concentration: '組合集中度',
+  portfolio_drawdown: '組合回撤',
+  portfolio_price_stale: '組合價格狀態',
 };
 
 const severityLabel: Record<string, string> = {
   info: '提示',
   warning: '警告',
-  critical: '严重',
+  critical: '嚴重',
 };
 
 const scopeLabel: Record<string, string> = {
-  single_symbol: '单标的',
-  watchlist: '自选股',
-  portfolio_holdings: '持仓标的',
-  portfolio_account: '持仓账户',
+  single_symbol: '單標的',
+  watchlist: '自選股',
+  portfolio_holdings: '持倉標的',
+  portfolio_account: '持倉賬户',
 };
 
 function formatParameters(rule: AlertRuleItem): string {
@@ -69,7 +69,7 @@ function formatParameters(rule: AlertRuleItem): string {
     return `${rule.parameters.direction === 'below' ? '下破' : '上破'} ${rule.parameters.price ?? '--'}`;
   }
   if (rule.alertType === 'price_change_percent') {
-    return `${rule.parameters.direction === 'down' ? '下跌' : '上涨'} ${rule.parameters.changePct ?? '--'}%`;
+    return `${rule.parameters.direction === 'down' ? '下跌' : '上漲'} ${rule.parameters.changePct ?? '--'}%`;
   }
   if (rule.alertType === 'volume_spike') {
     return `${rule.parameters.multiplier ?? '--'}x`;
@@ -88,7 +88,7 @@ function formatParameters(rule: AlertRuleItem): string {
     return `KDJ(${rule.parameters.period ?? '--'},${rule.parameters.kPeriod ?? '--'},${rule.parameters.dPeriod ?? '--'}) ${direction}`;
   }
   if (rule.alertType === 'portfolio_stop_loss') {
-    return rule.parameters.mode === 'breach' ? '已触发止损' : '接近止损';
+    return rule.parameters.mode === 'breach' ? '已觸發止損' : '接近止損';
   }
   if (rule.alertType === 'portfolio_concentration') return 'top_weight_pct';
   if (rule.alertType === 'portfolio_drawdown') return 'max_drawdown_pct';
@@ -103,7 +103,7 @@ function isCoolingDown(rule: AlertRuleItem): boolean {
 function formatTarget(rule: AlertRuleItem): string {
   if (rule.targetScope === 'watchlist') return 'default';
   if (rule.targetScope === 'portfolio_account' || rule.targetScope === 'portfolio_holdings') {
-    return rule.target === 'all' ? '全部账户' : `账户 ${rule.target}`;
+    return rule.target === 'all' ? '全部賬户' : `賬户 ${rule.target}`;
   }
   return rule.target;
 }
@@ -155,10 +155,10 @@ export const AlertRuleList: React.FC<AlertRuleListProps> = ({
   );
 
   return (
-    <Card title="告警规则" subtitle={`${total} 条规则`} variant="bordered" padding="md" className={className}>
+    <Card title="告警規則" subtitle={`${total} 條規則`} variant="bordered" padding="md" className={className}>
       <div className="mb-4 grid gap-3 md:grid-cols-2">
         <Select
-          label="启停状态"
+          label="啓停狀態"
           value={enabledFilter}
           options={ENABLED_FILTER_OPTIONS}
           onChange={(value) => {
@@ -166,7 +166,7 @@ export const AlertRuleList: React.FC<AlertRuleListProps> = ({
           }}
         />
         <Select
-          label="规则类型"
+          label="規則類型"
           value={alertTypeFilter}
           options={ALERT_TYPE_FILTER_OPTIONS}
           onChange={(value) => {
@@ -179,8 +179,8 @@ export const AlertRuleList: React.FC<AlertRuleListProps> = ({
         <div className="flex min-h-[220px] flex-1 items-center justify-center">
           <EmptyState
             icon={<Bell className="h-6 w-6" />}
-            title={isLoading ? '正在加载规则' : '暂无告警规则'}
-            description="创建规则后，后台评估任务会按轮询周期处理已启用的告警。"
+            title={isLoading ? '正在加載規則' : '暫無告警規則'}
+            description="創建規則後，後台評估任務會按輪詢週期處理已啓用的告警。"
           />
         </div>
       ) : (
@@ -188,13 +188,13 @@ export const AlertRuleList: React.FC<AlertRuleListProps> = ({
           <table className="w-full min-w-[960px] text-left text-sm">
             <thead className="border-b border-border/60 text-xs uppercase text-muted-text">
               <tr>
-                <th className="px-3 py-2 font-medium">规则</th>
-                <th className="px-3 py-2 font-medium">目标</th>
-                <th className="px-3 py-2 font-medium">类型</th>
-                <th className="px-3 py-2 font-medium">参数</th>
-                <th className="px-3 py-2 font-medium">状态</th>
-                <th className="px-3 py-2 font-medium">冷却</th>
-                <th className="px-3 py-2 font-medium">更新时间</th>
+                <th className="px-3 py-2 font-medium">規則</th>
+                <th className="px-3 py-2 font-medium">目標</th>
+                <th className="px-3 py-2 font-medium">類型</th>
+                <th className="px-3 py-2 font-medium">參數</th>
+                <th className="px-3 py-2 font-medium">狀態</th>
+                <th className="px-3 py-2 font-medium">冷卻</th>
+                <th className="px-3 py-2 font-medium">更新時間</th>
                 <th className="px-3 py-2 text-right font-medium">操作</th>
               </tr>
             </thead>
@@ -203,7 +203,7 @@ export const AlertRuleList: React.FC<AlertRuleListProps> = ({
                 <tr key={rule.id} className="align-top">
                   <td className="px-3 py-3">
                     <div className="font-medium text-foreground">{rule.name}</div>
-                    <div className="mt-1 text-xs text-muted-text">来源：{rule.source}</div>
+                    <div className="mt-1 text-xs text-muted-text">來源：{rule.source}</div>
                   </td>
                   <td className="px-3 py-3 text-secondary-text">
                     <div className="font-mono">{formatTarget(rule)}</div>
@@ -220,14 +220,14 @@ export const AlertRuleList: React.FC<AlertRuleListProps> = ({
                   <td className="px-3 py-3 text-secondary-text">{formatParameters(rule)}</td>
                   <td className="px-3 py-3">
                     <Badge variant={rule.enabled ? 'success' : 'default'}>
-                      {rule.enabled ? '已启用' : '已停用'}
+                      {rule.enabled ? '已啓用' : '已停用'}
                     </Badge>
                   </td>
                   <td className="px-3 py-3 text-xs text-secondary-text">
-                    <div>{isCoolingDown(rule) ? '冷却中' : '未冷却'}</div>
+                    <div>{isCoolingDown(rule) ? '冷卻中' : '未冷卻'}</div>
                     <div className="mt-1">{formatDateTime(rule.cooldownUntil)}</div>
                     {hasChildTargetCooldown(rule) ? (
-                      <div className="mt-1 text-muted-text">子目标见触发历史</div>
+                      <div className="mt-1 text-muted-text">子目標見觸發歷史</div>
                     ) : null}
                   </td>
                   <td className="px-3 py-3 text-xs text-secondary-text">{formatDateTime(rule.updatedAt ?? rule.createdAt)}</td>
@@ -238,30 +238,30 @@ export const AlertRuleList: React.FC<AlertRuleListProps> = ({
                         variant="outline"
                         onClick={() => onTest(rule)}
                         isLoading={isRuleActionBusy(rule, 'test')}
-                        loadingText="测试中"
+                        loadingText="測試中"
                         disabled={isRuleBusy(rule) && !isRuleActionBusy(rule, 'test')}
                       >
-                        测试
+                        測試
                       </Button>
                       <Button
                         size="xsm"
                         variant={rule.enabled ? 'secondary' : 'primary'}
                         onClick={() => onToggleEnabled(rule)}
                         isLoading={isRuleActionBusy(rule, 'toggle')}
-                        loadingText={rule.enabled ? '停用中' : '启用中'}
+                        loadingText={rule.enabled ? '停用中' : '啓用中'}
                         disabled={isRuleBusy(rule) && !isRuleActionBusy(rule, 'toggle')}
                       >
-                        {rule.enabled ? '停用' : '启用'}
+                        {rule.enabled ? '停用' : '啓用'}
                       </Button>
                       <Button
                         size="xsm"
                         variant="danger-subtle"
-                        aria-label={`删除 ${rule.name}`}
+                        aria-label={`刪除 ${rule.name}`}
                         onClick={() => setPendingDelete(rule)}
                         disabled={isRuleBusy(rule)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                        删除
+                        刪除
                       </Button>
                     </div>
                   </td>
@@ -281,9 +281,9 @@ export const AlertRuleList: React.FC<AlertRuleListProps> = ({
 
       <ConfirmDialog
         isOpen={pendingDelete != null}
-        title="删除告警规则"
-        message={pendingDelete ? `确认删除「${pendingDelete.name}」吗？该操作不会删除已有触发历史。` : ''}
-        confirmText="删除"
+        title="刪除告警規則"
+        message={pendingDelete ? `確認刪除「${pendingDelete.name}」嗎？該操作不會刪除已有觸發歷史。` : ''}
+        confirmText="刪除"
         cancelText="取消"
         isDanger
         onConfirm={() => {

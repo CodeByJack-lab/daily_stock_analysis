@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [chore] market_review: 移除 src/core/market_review.py / market_review_lock.py / market_review_runtime.py / market_profile.py / market_strategy.py、src/market_analyzer.py、bot/commands/market.py、data_provider/tickflow_fetcher.py 及對應 8 個 test；main.py 移除 --market-review/--no-market-review CLI 開關，API endpoints 與 schemas 同步移除 MarketReview 相關內容
 - [chore] desktop: 移除 apps/dsa-desktop/、6 個 desktop build/run script 同 .github/workflows/desktop-release.yml；Web UI 保留
 - [chore] services: 移除 image_stock_extractor（POST /extract-from-image 端點同 vision LLM service）與 social_sentiment_service（pipeline.py 對應 2 個 call site 同 init block）及對應 test
+- [chore] i18n: 用 OpenCC s2hk + revert overrides 將 strategies/ 與 apps/dsa-web/src/ 內嘅簡體中文轉成繁體（5,667 字符替換、68 檔），新增 scripts/convert_simp_to_trad.py 可重複運行
 
 ## [3.18.0] - 2026-05-21
 
