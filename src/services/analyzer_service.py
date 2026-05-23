@@ -15,7 +15,7 @@ import uuid
 from typing import List, Optional
 
 from src.analyzer import AnalysisResult
-from src.core.market_review import run_market_review
+# Market review removed in Step 3 cleanup.
 from src.core.pipeline import StockAnalysisPipeline
 from src.config import Config, get_config
 from src.enums import ReportType
@@ -102,33 +102,6 @@ def perform_market_review(
     config: Config = None,
     notifier: Optional[NotificationService] = None,
 ) -> Optional[str]:
-    """
-    执行大盘复盘
-
-    Args:
-        config: 配置对象（可选，默认使用单例）
-        notifier: 通知服务（可选）
-
-    Returns:
-        复盘报告内容
-    """
-    if config is None:
-        config = get_config()
-
-    # 创建分析流水线以获取analyzer和search_service
-    pipeline = StockAnalysisPipeline(
-        config=config,
-        query_id=uuid.uuid4().hex,
-        query_source="cli",
-    )
-
-    # 使用提供的通知服务或创建新的
-    review_notifier = notifier or pipeline.notifier
-
-    # 调用大盘复盘函数
-    return run_market_review(
-        notifier=review_notifier,
-        analyzer=pipeline.analyzer,
-        search_service=pipeline.search_service,
-    )
+    """Market review removed in Step 3 cleanup; no-op stub kept for backward compat."""
+    return None
 

@@ -40,8 +40,6 @@ from api.v1.schemas.analysis import (
     TaskInfo,
     TaskListResponse,
     DuplicateTaskErrorResponse,
-    MarketReviewRequest,
-    MarketReviewAccepted,
 )
 from api.v1.schemas.common import ErrorResponse
 from api.v1.schemas.history import (
@@ -53,15 +51,7 @@ from api.v1.schemas.history import (
 )
 from data_provider.base import canonical_stock_code, normalize_stock_code
 from src.config import Config
-from src.core.market_review_lock import (
-    MarketReviewExecutionLock as _MarketReviewExecutionLock,
-    market_review_lock_path,
-    release_market_review_lock as _release_market_review_lock,
-    try_acquire_market_review_lock as _try_acquire_market_review_lock,
-)
-from src.core.market_review_runtime import (
-    build_market_review_runtime as _runtime_build_market_review_runtime,
-)
+# Market review lock / runtime removed in Step 3 cleanup.
 from src.report_language import get_localized_stock_name, normalize_report_language
 from src.services.name_to_code_resolver import resolve_name_to_code
 from src.services.stock_code_utils import is_code_like
@@ -84,62 +74,7 @@ router = APIRouter()
 _SUPPORTED_FREE_TEXT_RE = re.compile(r"^[A-Za-z0-9.*\-+\u3400-\u9fff\s]+$")
 
 
-def _market_review_lock_path(config: Config) -> Path:
-    return market_review_lock_path(config)
-
-
-def _compute_market_review_override_region(config: Config) -> Optional[str]:
-    if not getattr(config, "trading_day_check_enabled", True):
-        return None
-
-    try:
-        from src.core.trading_calendar import (
-            get_open_markets_today,
-            compute_effective_region,
-        )
-
-        open_markets = get_open_markets_today()
-        return compute_effective_region(
-            getattr(config, "market_review_region", "cn") or "cn",
-            open_markets,
-        )
-    except Exception as exc:
-        logger.warning("大盘复盘交易日过滤失败，按配置继续执行: %s", exc)
-        return None
-
-
-def _build_market_review_runtime(config: Config, source_message: Optional[Any] = None) -> tuple[Any, Any, Any]:
-    return _runtime_build_market_review_runtime(config, source_message)
-
-
-def _run_market_review_background(
-    send_notification: bool,
-    override_region: Optional[str] = None,
-    lock_token: Optional[_MarketReviewExecutionLock] = None,
-    config: Optional[Config] = None,
-    query_id: Optional[str] = None,
-) -> None:
-    """Run market review after the API response has been accepted."""
-    from src.core.market_review import run_market_review
-
-    runtime_config = config or get_config_dep()
-    try:
-        notifier, analyzer, search_service = _build_market_review_runtime(runtime_config)
-        review_kwargs = {
-            "notifier": notifier,
-            "analyzer": analyzer,
-            "search_service": search_service,
-            "send_notification": send_notification,
-            "override_region": override_region,
-        }
-        if query_id:
-            review_kwargs["query_id"] = query_id
-        report = run_market_review(**review_kwargs)
-        if not report:
-            raise RuntimeError("大盘复盘未返回可持久化报告")
-        return {"result": report}
-    finally:
-        _release_market_review_lock(lock_token)
+# Market review helpers removed in Step 3 cleanup.
 
 
 def _invalid_analysis_input_error() -> HTTPException:
@@ -467,72 +402,7 @@ def _handle_sync_analysis(
         )
 
 
-# ============================================================
-# POST /market-review - 触发大盘复盘
-# ============================================================
-
-@router.post(
-    "/market-review",
-    response_model=MarketReviewAccepted,
-    status_code=202,
-    responses={
-        202: {"description": "大盘复盘任务已接受", "model": MarketReviewAccepted},
-        409: {"description": "大盘复盘正在执行", "model": ErrorResponse},
-        500: {"description": "提交失败", "model": ErrorResponse},
-    },
-    summary="触发大盘复盘",
-    description="提交一个后台大盘复盘任务，复用 CLI 的大盘复盘链路并保存报告。接口内部仅提供进程内/单机防重，如多实例（多 Worker/多容器）部署，需结合外部幂等机制避免重复触发。",
-)
-def trigger_market_review(
-    request: Optional[MarketReviewRequest] = Body(None),
-    config: Config = Depends(get_config_dep),
-) -> MarketReviewAccepted:
-    """Trigger market review from Web/API without blocking the request."""
-    request = request or MarketReviewRequest()
-
-    override_region = _compute_market_review_override_region(config)
-    if override_region == "":
-        return MarketReviewAccepted(
-            status="accepted",
-            message="今日大盘复盘相关市场均为非交易日，已跳过大盘复盘",
-            send_notification=request.send_notification,
-        )
-
-    lock_token = _try_acquire_market_review_lock(config)
-    if lock_token is None:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "error": "duplicate_market_review",
-                "message": "大盘复盘正在执行中，请稍后再试",
-            },
-        )
-
-    try:
-        task_id = uuid.uuid4().hex
-        task = get_task_queue().submit_background_task(
-            lambda: _run_market_review_background(
-                request.send_notification,
-                override_region=override_region,
-                lock_token=lock_token,
-                config=config,
-                query_id=task_id,
-            ),
-            stock_code="market_review",
-            stock_name="大盘复盘",
-            message="大盘复盘任务已提交",
-            task_id=task_id,
-        )
-    except Exception:
-        _release_market_review_lock(lock_token)
-        raise
-
-    return MarketReviewAccepted(
-        status="accepted",
-        message="大盘复盘任务已提交，完成后会保存报告并按配置推送通知",
-        send_notification=request.send_notification,
-        task_id=task.task_id,
-    )
+# POST /market-review endpoint removed in Step 3 cleanup.
 
 
 # ============================================================
@@ -774,28 +644,21 @@ def get_analysis_status(task_id: str) -> TaskStatus:
     
     if task:
         result: Optional[AnalysisResultResponse] = None
-        market_review_report = None
 
         if task.status == TaskStatusEnum.COMPLETED and isinstance(task.result, dict):
-            if task.stock_code == "market_review":
-                report_text = task.result.get("result")
-                if isinstance(report_text, str) and report_text.strip():
-                    market_review_report = report_text
-            else:
-                try:
-                    result = _build_task_analysis_result(task)
-                except Exception:
-                    logger.warning(
-                        "解析任务结果失败，回退为空返回: task_id=%s",
-                        task.task_id,
-                    )
+            try:
+                result = _build_task_analysis_result(task)
+            except Exception:
+                logger.warning(
+                    "解析任务结果失败，回退为空返回: task_id=%s",
+                    task.task_id,
+                )
 
         return TaskStatus(
             task_id=task.task_id,
             status=task.status.value,
             progress=task.progress,
             result=result,
-            market_review_report=market_review_report,
             error=task.error,
             stock_name=task.stock_name,
             original_query=task.original_query,
@@ -812,21 +675,14 @@ def get_analysis_status(task_id: str) -> TaskStatus:
         if records:
             record = records[0]
             raw_result = parse_json_field(record.raw_result)
+            # Legacy market_review records are skipped silently — the report type
+            # is no longer surfaced through the API after Step 3 cleanup.
             if getattr(record, "report_type", None) == "market_review":
-                market_review_report = None
-                if isinstance(raw_result, dict):
-                    report_text = raw_result.get("raw_response") or raw_result.get("market_review_report")
-                    if isinstance(report_text, str) and report_text.strip():
-                        market_review_report = report_text
-                if not market_review_report and record.news_content:
-                    market_review_report = record.news_content
-
                 return TaskStatus(
                     task_id=task_id,
                     status="completed",
                     progress=100,
                     result=None,
-                    market_review_report=market_review_report,
                     error=None,
                     stock_name=record.name,
                 )

@@ -732,50 +732,8 @@ class DataFetcherManager:
         return name
 
     def _get_tickflow_fetcher(self):
-        """Lazily create a TickFlow fetcher for market-review-only calls."""
-        from src.config import get_config
-
-        config = get_config()
-        api_key = (getattr(config, "tickflow_api_key", None) or "").strip()
-
-        if not hasattr(self, "_tickflow_lock") or self._tickflow_lock is None:
-            self._tickflow_lock = RLock()
-
-        with self._tickflow_lock:
-            current_fetcher = getattr(self, "_tickflow_fetcher", None)
-            current_key = getattr(self, "_tickflow_api_key", None)
-
-            if not api_key:
-                if current_fetcher is not None and hasattr(current_fetcher, "close"):
-                    try:
-                        current_fetcher.close()
-                    except Exception as exc:
-                        logger.debug("[TickFlowFetcher] 关闭旧实例失败: %s", exc)
-                self._tickflow_fetcher = None
-                self._tickflow_api_key = None
-                return None
-
-            if current_fetcher is not None and current_key == api_key:
-                return current_fetcher
-
-            if current_fetcher is not None and hasattr(current_fetcher, "close"):
-                try:
-                    current_fetcher.close()
-                except Exception as exc:
-                    logger.debug("[TickFlowFetcher] 切换实例时关闭失败: %s", exc)
-
-            try:
-                from .tickflow_fetcher import TickFlowFetcher
-
-                fetcher = TickFlowFetcher(api_key=api_key)
-                self._tickflow_fetcher = fetcher
-                self._tickflow_api_key = api_key
-                return fetcher
-            except Exception as exc:
-                logger.warning("[TickFlowFetcher] 初始化失败: %s", exc)
-                self._tickflow_fetcher = None
-                self._tickflow_api_key = None
-                return None
+        """TickFlow fetcher removed with market review in Step 3 cleanup."""
+        return None
 
     def close(self) -> None:
         """Best-effort release of manager-owned resources."""
