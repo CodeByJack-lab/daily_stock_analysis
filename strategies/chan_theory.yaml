@@ -1,6 +1,6 @@
 name: chan_theory
 display_name: "Chan Theory"
-description: Chan Zhushanchan theory: stroke/segment/center analysis.
+description: "Chan Zhushanchan theory: stroke/segment/center analysis."
 category: advanced
 core_rules: [2, 4]
 required_tools:
